@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "notes": "## Fit v1.0.0\n\n- chore: fix release notes in updater.json for v1.0.8",
+  "notes": "Welcome to the launch of Fit, the ultra-lightweight agentic development environment!\n\nFeatures included in this release:\n- 🖥️ **Multi-Terminals & Grid Layout**: Organize your workspace using customizable terminal splits and layouts (up to 4x2).\n- 🎙️ **Voice Dictation & Audio Feedback**: Integrated audio feedback to support hands-free coding via voice dictation.\n- 🐙 **Native Git Integration**: Built-in Git panel, tracking changed files and viewing diffs instantly.\n- 🎨 **Premium Modern Design**: Highly optimized UI with responsive animations, auto-hiding sidebar, and native drag-to-move custom title bar.",
   "pub_date": "2026-06-11T14:16:57.501Z",
   "platforms": {
     "windows-x86_64-nsis": {
