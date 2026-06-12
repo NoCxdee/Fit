@@ -100,41 +100,12 @@ function handleSetActiveWorkspace(state: AppState, workspaceId: string): AppStat
   if (state.activeWorkspaceId === workspaceId) {
     return state;
   }
-  const workspaceSessions = state.sessions.filter(s => s.workspaceId === workspaceId);
-  let targetSession = workspaceSessions.find(s => s.id === state.activeSessionId) || workspaceSessions[0];
-  let newSessions = state.sessions;
-  let newTabs = state.openTabs;
-
-  if (!targetSession) {
-    const workspace = state.workspaces.find(w => w.id === workspaceId);
-      targetSession = {
-        id: generateId('session'),
-        workspaceId,
-        name: 'session 1',
-        rootPanel: makeSessionRoot('powershell-core', workspace?.path || ''),
-      };
-    newSessions = [...state.sessions, targetSession];
-    newTabs = [...state.openTabs, {
-      id: `tab-session-${targetSession.id}`,
-      type: 'session' as const,
-      title: targetSession.name,
-      sessionId: targetSession.id,
-      workspaceId,
-    }];
-  }
-
-  const targetSessionId = targetSession.id;
-  const sessionTabs = newTabs.filter(t => t.sessionId === targetSessionId);
-  const newActiveTabId = sessionTabs.length > 0 ? sessionTabs[0].id : `tab-session-${targetSessionId}`;
-
   return {
     ...state,
     activeWorkspaceId: workspaceId,
-    activeSessionId: targetSessionId,
-    activeTabId: newActiveTabId,
+    activeSessionId: null,
+    activeTabId: null,
     gitStatus: null,
-    sessions: newSessions,
-    openTabs: newTabs,
     fileDrawerOpen: true,
     drawerTab: 'files',
   };
@@ -393,10 +364,11 @@ function buildGridFromTerminals(terms: TerminalPanel[], cols: number, rows: numb
 
 function handleSetActiveSession(state: AppState, sessionId: string): AppState {
   const tabId = `tab-session-${sessionId}`;
+  const session = state.sessions.find(s => s.id === sessionId);
+  if (!session) return state;
+
   const existingTab = state.openTabs.find(t => t.id === tabId);
   if (!existingTab) {
-    const session = state.sessions.find(s => s.id === sessionId);
-    if (!session) return state;
     const tab = {
       id: tabId,
       type: 'session' as const,
@@ -409,12 +381,14 @@ function handleSetActiveSession(state: AppState, sessionId: string): AppState {
       activeSessionId: sessionId,
       openTabs: [...state.openTabs, tab],
       activeTabId: tabId,
+      activeWorkspaceId: session.workspaceId,
     };
   }
   return {
     ...state,
     activeSessionId: sessionId,
     activeTabId: tabId,
+    activeWorkspaceId: session.workspaceId,
   };
 }
 
@@ -575,6 +549,70 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ),
       };
 
+    case 'RESOLVE_WORKSPACE_PATH': {
+      const { id, path, name } = action.payload;
+      const ws = state.workspaces.find(w => w.id === id);
+      if (!ws) return state;
+      const oldPath = ws.path;
+      const newPath = path;
+
+      const normalize = (p: string) => p.replace(/\\/g, '/');
+      const updatePathStr = (p: string) => {
+        const pNorm = normalize(p);
+        const oldNorm = normalize(oldPath);
+        const newNorm = normalize(newPath);
+        if (pNorm.startsWith(oldNorm)) {
+          const suffix = pNorm.substring(oldNorm.length);
+          const joined = newNorm + suffix;
+          return newPath.includes('\\') ? joined.replace(/\//g, '\\') : joined;
+        }
+        return p;
+      };
+
+      const updatePanelNodeCwd = (node: PanelNode): PanelNode => {
+        if (node.type === 'terminal') {
+          return {
+            ...node,
+            cwd: updatePathStr(node.cwd)
+          };
+        } else {
+          return {
+            ...node,
+            children: node.children.map(updatePanelNodeCwd)
+          } as SplitPanel;
+        }
+      };
+
+      return {
+        ...state,
+        workspaces: state.workspaces.map(w =>
+          w.id === id ? { ...w, path: newPath, name: name || w.name } : w
+        ),
+        openTabs: state.openTabs.map(t => {
+          if (t.workspaceId === id && t.filePath) {
+            return {
+              ...t,
+              filePath: updatePathStr(t.filePath)
+            };
+          }
+          return t;
+        }),
+        sessions: state.sessions.map(s => {
+          if (s.workspaceId === id) {
+            return {
+              ...s,
+              terminals: s.terminals?.map(term => ({
+                ...term,
+                cwd: updatePathStr(term.cwd)
+              })),
+              rootPanel: updatePanelNodeCwd(s.rootPanel)
+            };
+          }
+          return s;
+        })
+      };
+    }
+
     case 'SET_ACTIVE_WORKSPACE':
       return handleSetActiveWorkspace(state, action.payload);
 
@@ -595,6 +633,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         activeSessionId: action.payload.id,
         openTabs: [...state.openTabs, tab],
         activeTabId: tab.id,
+        activeWorkspaceId: action.payload.workspaceId,
       };
     }
 
