@@ -18,6 +18,7 @@ import {
 } from '../../utils/ipc';
 import { FileContextMenu } from './FileContextMenu';
 import type { FileEntry } from '../../types';
+import { Portal } from '../Portal';
 import { ResizeHandle } from './ResizeHandle';
 import { Search, FilePlus2, FolderPlus, RotateCw, Folder, GitBranch, MoreHorizontal, ChevronRight } from 'lucide-react';
 
@@ -88,8 +89,8 @@ interface TreeItemProps {
   onRenameComplete: (entry: FileEntry, name: string) => Promise<void>;
   onRenameCancel: () => void;
   onStartRename: (path: string) => void;
-  selectedPath: string | null;
-  onSelect: (path: string) => void;
+  selectedPaths: Set<string>;
+  onSelect: (path: string, e: React.MouseEvent) => void;
 }
 
 const TreeItem = memo(function TreeItem({ 
@@ -103,7 +104,7 @@ const TreeItem = memo(function TreeItem({
   onRenameComplete,
   onRenameCancel,
   onStartRename,
-  selectedPath,
+  selectedPaths,
   onSelect
 }: TreeItemProps) {
   const [expanded, setExpanded] = useState(false);
@@ -119,9 +120,12 @@ const TreeItem = memo(function TreeItem({
   // O(1) lookup instead of O(n) .some()
   const isModified = !isDir && modifiedPaths.has(normalizedPath);
   const hasModifiedChildren = isDir && modifiedDirPrefixes.has(normalizedPath + '/');
-  const isSelected = selectedPath === entry.path;
+  const isSelected = selectedPaths.has(entry.path);
 
   const handleClick = async (e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      return;
+    }
     const target = e.target as HTMLElement;
     const isNameClick = !!target.closest('.file-tree-item__name');
 
@@ -181,7 +185,7 @@ const TreeItem = memo(function TreeItem({
       <div
         className={itemClassName}
         onClick={(e) => {
-          onSelect(entry.path);
+          onSelect(entry.path, e);
           handleClick(e);
         }}
         onDoubleClick={handleDoubleClick}
@@ -260,7 +264,7 @@ const TreeItem = memo(function TreeItem({
           onRenameComplete={onRenameComplete}
           onRenameCancel={onRenameCancel}
           onStartRename={onStartRename}
-          selectedPath={selectedPath}
+          selectedPaths={selectedPaths}
           onSelect={onSelect}
         />
       ))}
@@ -271,7 +275,7 @@ const TreeItem = memo(function TreeItem({
 import { GitPanel } from './GitPanel';
 
 export function FileDrawer() {
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
   const fileDrawerOpen = useAppSelector(s => s.fileDrawerOpen);
   const activeWorkspaceId = useActiveWorkspaceId();
   const workspaces = useWorkspaces();
@@ -283,7 +287,8 @@ export function FileDrawer() {
   const [rootEntries, setRootEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const lastPathRef = useRef<string>('');
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+  const [lastSelectedPath, setLastSelectedPath] = useState<string | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
   // Search & inline create states
@@ -417,11 +422,98 @@ export function FileDrawer() {
     entry: FileEntry;
   } | null>(null);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
-  const [deletingEntry, setDeletingEntry] = useState<FileEntry | null>(null);
+  const [deletingItems, setDeletingItems] = useState<{ path: string; isDir: boolean; name: string }[]>([]);
+
+  const handleSelect = useCallback((path: string, e?: React.MouseEvent | KeyboardEvent) => {
+    setSelectedPaths(prev => {
+      const next = new Set(prev);
+      if (!e) {
+        setLastSelectedPath(path);
+        return new Set([path]);
+      }
+      
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+      if (isCmdOrCtrl) {
+        if (next.has(path)) {
+          next.delete(path);
+        } else {
+          next.add(path);
+        }
+        setLastSelectedPath(path);
+        return next;
+      }
+      
+      if (e.shiftKey && lastSelectedPath) {
+        const elements = Array.from(document.querySelectorAll('.file-tree-item, .file-drawer__search-result-item'));
+        const visiblePaths = elements.map(el => el.getAttribute('data-path') || '');
+        const startIdx = visiblePaths.indexOf(lastSelectedPath);
+        const endIdx = visiblePaths.indexOf(path);
+        if (startIdx !== -1 && endIdx !== -1) {
+          const minIdx = Math.min(startIdx, endIdx);
+          const maxIdx = Math.max(startIdx, endIdx);
+          const range = visiblePaths.slice(minIdx, maxIdx + 1);
+          
+          return new Set(range);
+        }
+      }
+      
+      setLastSelectedPath(path);
+      return new Set([path]);
+    });
+  }, [lastSelectedPath]);
+
+  // Click outside to clear selection
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target) return;
+
+      // Exclude tree items, context menu, modal, search inputs, tabs, create inputs, etc.
+      if (
+        target.closest('.file-tree-item') ||
+        target.closest('.file-drawer__search-result-item') ||
+        target.closest('.context-menu') ||
+        target.closest('.edit-modal') ||
+        target.closest('.file-drawer__workspace-actions') ||
+        target.closest('.file-drawer__search-input') ||
+        target.closest('.file-drawer__top-tabs') ||
+        target.closest('.file-drawer__create-input')
+      ) {
+        return;
+      }
+
+      // If they clicked the tree element itself, check if they clicked the scrollbar
+      const treeEl = target.closest('.file-drawer__tree');
+      if (treeEl) {
+        const rect = treeEl.getBoundingClientRect();
+        const isScrollbarClick = e.clientX >= rect.left + treeEl.clientWidth;
+        if (isScrollbarClick) {
+          return;
+        }
+      }
+
+      setSelectedPaths(new Set());
+      setLastSelectedPath(null);
+    };
+
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentClick);
+    };
+  }, []);
 
   const handleContextMenu = useCallback((e: React.MouseEvent, entry: FileEntry) => {
     e.preventDefault();
     e.stopPropagation();
+
+    setSelectedPaths((prev) => {
+      if (!prev.has(entry.path)) {
+        setLastSelectedPath(entry.path);
+        return new Set([entry.path]);
+      }
+      return prev;
+    });
+
     setFileContextMenu({
       x: e.clientX,
       y: e.clientY,
@@ -474,21 +566,23 @@ export function FileDrawer() {
   }, []);
 
   const handleDeleteConfirm = async () => {
-    if (!deletingEntry || !activeWorkspace) return;
-
-    const path = deletingEntry.path;
+    if (deletingItems.length === 0 || !activeWorkspace) return;
 
     try {
-      await deleteItem(path);
+      for (const item of deletingItems) {
+        await deleteItem(item.path);
 
-      // Close open tabs inside the deleted file/directory
-      openTabs.forEach(tab => {
-        if (tab.filePath && (tab.filePath === path || tab.filePath.startsWith(path + '/'))) {
-          dispatch({ type: 'CLOSE_TAB', payload: tab.id });
-        }
-      });
+        // Close open tabs inside the deleted file/directory
+        openTabs.forEach(tab => {
+          if (tab.filePath && (tab.filePath === item.path || tab.filePath.startsWith(item.path + '/'))) {
+            dispatch({ type: 'CLOSE_TAB', payload: tab.id });
+          }
+        });
+      }
 
-      setDeletingEntry(null);
+      setDeletingItems([]);
+      setSelectedPaths(new Set());
+      setLastSelectedPath(null);
       refreshFiles();
       refreshGit();
     } catch (err) {
@@ -546,14 +640,39 @@ export function FileDrawer() {
         return;
       }
 
-      if (['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', ' ', 'Enter'].includes(e.key)) {
+      if (['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft', ' ', 'Enter', 'Delete', 'Backspace', 'Escape'].includes(e.key)) {
         const selector = '.file-tree-item, .file-drawer__search-result-item';
         const items = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
         if (items.length === 0) return;
 
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        if (e.key === 'Backspace' && !isMac) {
+          return;
+        }
+
         e.preventDefault();
 
-        const currentIndex = items.findIndex(el => el.getAttribute('data-path') === selectedPath);
+        if (e.key === 'Escape') {
+          setSelectedPaths(new Set());
+          setLastSelectedPath(null);
+          return;
+        }
+
+        const currentIndex = items.findIndex(el => el.getAttribute('data-path') === lastSelectedPath);
+
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (selectedPaths.size > 0) {
+            const itemsToDel = Array.from(selectedPaths).map(path => {
+              const escPath = path.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+              const el = document.querySelector(`[data-path="${escPath}"]`);
+              const isDir = el ? el.getAttribute('data-is-dir') === 'true' : false;
+              const name = path.split(/[\\/]/).pop() || '';
+              return { path, isDir, name };
+            });
+            setDeletingItems(itemsToDel);
+          }
+          return;
+        }
 
         if (e.key === 'ArrowDown') {
           let nextIndex = currentIndex + 1;
@@ -561,8 +680,22 @@ export function FileDrawer() {
           const targetItem = items[nextIndex];
           if (targetItem) {
             const nextPath = targetItem.getAttribute('data-path');
-            setSelectedPath(nextPath);
-            targetItem.scrollIntoView({ block: 'nearest' });
+            if (nextPath) {
+              if (e.shiftKey && lastSelectedPath) {
+                const visiblePaths = items.map(el => el.getAttribute('data-path') || '');
+                const startIdx = visiblePaths.indexOf(lastSelectedPath);
+                const endIdx = visiblePaths.indexOf(nextPath);
+                if (startIdx !== -1 && endIdx !== -1) {
+                  const min = Math.min(startIdx, endIdx);
+                  const max = Math.max(startIdx, endIdx);
+                  setSelectedPaths(new Set(visiblePaths.slice(min, max + 1)));
+                }
+              } else {
+                setSelectedPaths(new Set([nextPath]));
+                setLastSelectedPath(nextPath);
+              }
+              targetItem.scrollIntoView({ block: 'nearest' });
+            }
           }
         } else if (e.key === 'ArrowUp') {
           let prevIndex = currentIndex - 1;
@@ -570,8 +703,22 @@ export function FileDrawer() {
           const targetItem = items[prevIndex];
           if (targetItem) {
             const prevPath = targetItem.getAttribute('data-path');
-            setSelectedPath(prevPath);
-            targetItem.scrollIntoView({ block: 'nearest' });
+            if (prevPath) {
+              if (e.shiftKey && lastSelectedPath) {
+                const visiblePaths = items.map(el => el.getAttribute('data-path') || '');
+                const startIdx = visiblePaths.indexOf(lastSelectedPath);
+                const endIdx = visiblePaths.indexOf(prevPath);
+                if (startIdx !== -1 && endIdx !== -1) {
+                  const min = Math.min(startIdx, endIdx);
+                  const max = Math.max(startIdx, endIdx);
+                  setSelectedPaths(new Set(visiblePaths.slice(min, max + 1)));
+                }
+              } else {
+                setSelectedPaths(new Set([prevPath]));
+                setLastSelectedPath(prevPath);
+              }
+              targetItem.scrollIntoView({ block: 'nearest' });
+            }
           }
         } else if (e.key === ' ' || e.key === 'Enter') {
           const currentItem = items[currentIndex];
@@ -586,16 +733,17 @@ export function FileDrawer() {
               const chevron = currentItem.querySelector('.file-tree-item__chevron');
               const isExpanded = chevron?.classList.contains('file-tree-item__chevron--open');
               if (!isExpanded) {
-                // Expand it
                 currentItem.click();
               } else {
-                // Go to first child (next item in DOM)
                 const nextIndex = currentIndex + 1;
                 if (nextIndex < items.length) {
                   const targetItem = items[nextIndex];
                   const nextPath = targetItem.getAttribute('data-path');
-                  setSelectedPath(nextPath);
-                  targetItem.scrollIntoView({ block: 'nearest' });
+                  if (nextPath) {
+                    setSelectedPaths(new Set([nextPath]));
+                    setLastSelectedPath(nextPath);
+                    targetItem.scrollIntoView({ block: 'nearest' });
+                  }
                 }
               }
             }
@@ -608,18 +756,19 @@ export function FileDrawer() {
             const isExpanded = chevron?.classList.contains('file-tree-item__chevron--open');
             
             if (isDir && isExpanded) {
-              // Collapse it
               currentItem.click();
             } else {
-              // Go to parent directory
               const currentPath = currentItem.getAttribute('data-path');
               if (currentPath) {
                 const parentPath = currentPath.substring(0, Math.max(currentPath.lastIndexOf('/'), currentPath.lastIndexOf('\\')));
                 const parentItem = items.find(el => el.getAttribute('data-path') === parentPath);
                 if (parentItem) {
                   const nextPath = parentItem.getAttribute('data-path');
-                  setSelectedPath(nextPath);
-                  parentItem.scrollIntoView({ block: 'nearest' });
+                  if (nextPath) {
+                    setSelectedPaths(new Set([nextPath]));
+                    setLastSelectedPath(nextPath);
+                    parentItem.scrollIntoView({ block: 'nearest' });
+                  }
                 }
               }
             }
@@ -632,7 +781,7 @@ export function FileDrawer() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isHovered, selectedPath, activeWorkspace]);
+  }, [isHovered, lastSelectedPath, selectedPaths, activeWorkspace]);
 
   const handleFileClick = useCallback((entry: FileEntry) => {
     const normalizePath = (p: string) => p.replace(/\\/g, '/');
@@ -846,17 +995,19 @@ export function FileDrawer() {
                       {searchResults.map(entry => {
                         const relPath = entry.path.replace(activeWorkspace.path, '').replace(/^[\\/]/, '');
                         const icon = !entry.isDir ? getFileIcon(entry.name) : null;
-                        const isSelected = selectedPath === entry.path;
+                        const isSelected = selectedPaths.has(entry.path);
                         return (
                           <div
                             key={entry.path}
                             className={`file-drawer__search-result-item ${isSelected ? 'file-drawer__search-result-item--selected' : ''}`}
-                            onClick={() => {
-                              setSelectedPath(entry.path);
-                              if (!entry.isDir) {
+                            onClick={(e) => {
+                              handleSelect(entry.path, e);
+                              const isModifier = e.ctrlKey || e.metaKey || e.shiftKey;
+                              if (!isModifier && !entry.isDir) {
                                 handleFileClick(entry);
                               }
                             }}
+                            onContextMenu={(e) => handleContextMenu(e, entry)}
                             data-path={entry.path}
                             data-is-dir={entry.isDir ? 'true' : 'false'}
                           >
@@ -952,8 +1103,8 @@ export function FileDrawer() {
                         onRenameComplete={handleRenameComplete}
                         onRenameCancel={handleRenameCancel}
                         onStartRename={setRenamingPath}
-                        selectedPath={selectedPath}
-                        onSelect={setSelectedPath}
+                        selectedPaths={selectedPaths}
+                        onSelect={handleSelect}
                       />
                     ))
                   )}
@@ -967,55 +1118,125 @@ export function FileDrawer() {
       </div>
 
       {fileContextMenu && (
-        <FileContextMenu
-          x={fileContextMenu.x}
-          y={fileContextMenu.y}
-          entry={fileContextMenu.entry}
-          onClose={() => setFileContextMenu(null)}
-          onRename={() => {
-            setRenamingPath(fileContextMenu.entry.path);
-          }}
-          onDelete={() => {
-            setDeletingEntry(fileContextMenu.entry);
-          }}
-        />
+        <Portal>
+          <FileContextMenu
+            x={fileContextMenu.x}
+            y={fileContextMenu.y}
+            entry={fileContextMenu.entry}
+            onClose={() => setFileContextMenu(null)}
+            onRename={() => {
+              setRenamingPath(fileContextMenu.entry.path);
+            }}
+            onDelete={() => {
+              const items = Array.from(selectedPaths).map(path => {
+                const escPath = path.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+                const el = document.querySelector(`[data-path="${escPath}"]`);
+                const isDir = el ? el.getAttribute('data-is-dir') === 'true' : false;
+                const name = path.split(/[\\/]/).pop() || '';
+                return { path, isDir, name };
+              });
+              setDeletingItems(items);
+            }}
+            selectionCount={selectedPaths.size}
+          />
+        </Portal>
       )}
 
-      {deletingEntry && (
-        <div className="modal-backdrop">
-          <div className="edit-modal" onClick={e => e.stopPropagation()}>
-            <div className="edit-modal__header">
-              <span className="edit-modal__title" style={{ color: 'var(--color-accent-red)' }}>{t('file.delete')}</span>
-              <button type="button" className="edit-modal__close-btn" onClick={() => setDeletingEntry(null)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-            <div className="edit-modal__body">
-              <div style={{ color: 'var(--color-ink)', fontSize: 'var(--text-body)', padding: 'var(--space-sm) 0', fontFamily: 'var(--font-sans)' }}>
-                {lang === 'it' ? 'Sei sicuro di voler eliminare ' : 'Are you sure you want to delete '}
-                <span style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>{deletingEntry.name}</span>?
-                <div style={{ fontSize: 'var(--text-caption)', color: 'var(--color-mute)', marginTop: '8px' }}>
-                  {lang === 'it' ? 'Questa azione non può essere annullata.' : 'This action cannot be undone.'}
+      {deletingItems.length > 0 && (
+        <Portal>
+          <div className="modal-backdrop" onClick={() => setDeletingItems([])} style={{ zIndex: 99999 }}>
+            <div className="edit-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px', width: '100%' }}>
+              <div className="edit-modal__header">
+                <span className="edit-modal__title" style={{ color: 'var(--color-accent-red)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18"/>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                  </svg>
+                  Delete Items
+                </span>
+              </div>
+              <div className="edit-modal__body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ color: 'var(--color-ink)', fontSize: 'var(--text-body-sm)', fontFamily: 'var(--font-sans)', lineHeight: '1.5' }}>
+                  {`Are you sure you want to permanently delete the following ${deletingItems.length} items?`}
+                  
+                  {/* Scrollable list of files to delete */}
+                  <div style={{
+                    marginTop: '12px',
+                    maxHeight: '180px',
+                    overflowY: 'auto',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: 'var(--radius-lg)',
+                    background: 'rgba(0, 0, 0, 0.25)',
+                    padding: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                  }}>
+                    {deletingItems.map(item => {
+                      const fileIcon = item.isDir ? <FolderClosedIcon /> : getFileIcon(item.name).icon;
+                      const iconColor = item.isDir ? 'var(--color-accent-amber)' : getFileIcon(item.name).color;
+                      const relPath = activeWorkspace ? item.path.replace(activeWorkspace.path, '').replace(/^[\\/]/, '') : item.path;
+
+                      return (
+                        <div key={item.path} style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '6px 10px',
+                          borderRadius: 'var(--radius-sm)',
+                          gap: '10px',
+                          fontSize: '12px',
+                          background: 'rgba(255, 255, 255, 0.01)',
+                          borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
+                          minWidth: 0,
+                        }}
+                        className="delete-list-item-hover"
+                        >
+                          <span style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: iconColor,
+                            width: '14px',
+                            height: '14px',
+                            fontSize: '11px',
+                            flexShrink: 0
+                          }}>
+                            {fileIcon}
+                          </span>
+                          <span style={{ color: 'var(--color-ink)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '240px' }} title={item.name}>
+                            {item.name}
+                          </span>
+                          {relPath && relPath !== item.name && (
+                            <span style={{ color: 'var(--color-mute)', fontSize: '10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, marginLeft: '6px' }} title={relPath}>
+                              ({relPath})
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  <div style={{ fontSize: '11px', color: 'var(--color-mute)', marginTop: '12px' }}>
+                    This action cannot be undone.
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="edit-modal__footer">
-              <button type="button" className="edit-modal__btn edit-modal__btn--cancel" onClick={() => setDeletingEntry(null)}>
-                {t('workspace.cancel') || 'Cancel'}
-              </button>
-              <button
-                type="button"
-                className="edit-modal__btn edit-modal__btn--delete"
-                onClick={handleDeleteConfirm}
-              >
-                {t('file.delete') || 'Delete'}
-              </button>
+              <div className="edit-modal__footer" style={{ gap: 'var(--space-sm)' }}>
+                <button type="button" className="edit-modal__btn edit-modal__btn--cancel" onClick={() => setDeletingItems([])}>
+                  {t('workspace.cancel') || 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  className="edit-modal__btn edit-modal__btn--delete"
+                  onClick={handleDeleteConfirm}
+                >
+                  {t('file.delete') || 'Delete'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   );
