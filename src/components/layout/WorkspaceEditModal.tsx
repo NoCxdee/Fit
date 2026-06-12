@@ -59,99 +59,36 @@ export function WorkspaceEditModal({ workspace, onClose, onSave }: WorkspaceEdit
     <div className="modal-backdrop">
       <div className="edit-modal" onClick={e => e.stopPropagation()}>
         <div className="edit-modal__header">
-          <span className="edit-modal__title">{t('workspace.editTitle')}</span>
-          <button className="edit-modal__close-btn" onClick={onClose}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <div>
+            <span className="edit-modal__title">Rename project</span>
+            <span className="edit-modal__subtitle">Update the title for <span className="edit-modal__path">{workspace.path}</span></span>
+          </div>
         </div>
 
         <div className="edit-modal__body">
           <div className="edit-modal__field">
-            <label className="edit-modal__label">{t('workspace.name')}</label>
+            <label className="edit-modal__label">Project title</label>
             <input
               type="text"
               className="edit-modal__input"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder={t('workspace.namePlaceholder')}
+              placeholder="Project name"
               autoFocus
             />
-          </div>
-
-          <div className="edit-modal__field">
-            <label className="edit-modal__label">{t('workspace.icon')}</label>
-            <div className="edit-modal__icon-row">
-              <div
-                className="edit-modal__icon-preview"
-                style={{
-                  backgroundColor: previewBg,
-                  color: previewText,
-                  cursor: 'pointer',
-                }}
-                onClick={triggerFileInput}
-              >
-                {icon ? (
-                  <img src={icon} alt="project icon" className="edit-modal__icon-img" />
-                ) : (
-                  <span className="edit-modal__icon-letter">
-                    {name ? name.charAt(0).toUpperCase() : 'A'}
-                  </span>
-                )}
-              </div>
-              <div className="edit-modal__icon-upload-info" onClick={triggerFileInput}>
-                <span className="edit-modal__icon-upload-text">{t('workspace.iconHint')}</span>
-                <span className="edit-modal__icon-upload-subtext">{t('workspace.iconSize')}</span>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleImageUpload}
-              />
-            </div>
-          </div>
-
-          <div className="edit-modal__field">
-            <label className="edit-modal__label">{t('workspace.color')}</label>
-            <div className="edit-modal__colors">
-              {COLOR_PRESETS.map(preset => {
-                const isActive = selectedColor === preset.hex;
-                return (
-                  <button
-                    key={preset.hex}
-                    className={`edit-modal__color-circle ${isActive ? 'edit-modal__color-circle--active' : ''}`}
-                    style={{
-                      backgroundColor: preset.bg,
-                      color: preset.text,
-                      boxShadow: isActive ? `0 0 0 2px var(--color-canvas), 0 0 0 4px ${preset.hex}` : undefined,
-                    }}
-                    onClick={() => setSelectedColor(preset.hex)}
-                    title={preset.name}
-                  >
-                    <span style={{ fontSize: '12px', fontWeight: 600 }}>
-                      {name ? name.charAt(0).toUpperCase() : 'A'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
 
         <div className="edit-modal__footer">
           <button className="edit-modal__btn edit-modal__btn--cancel" onClick={onClose}>
-            {t('workspace.cancel')}
+            Cancel
           </button>
           <button
             className="edit-modal__btn edit-modal__btn--save"
             onClick={handleSave}
             disabled={!name.trim()}
           >
-            {t('workspace.save')}
+            Save
           </button>
         </div>
       </div>
