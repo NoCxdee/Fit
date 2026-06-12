@@ -13,7 +13,7 @@ const STORAGE_KEY = 'fit_language';
 const translations: Record<Lang, Record<string, string>> = {
   en: {
     'app.name': 'Fit',
-    'app.description': 'Your personal, lightweight agentic development environment.',
+    'app.description': 'A terminal first workspace to ship faster with AI',
 
     // Welcome
     'welcome.noProject': 'No Project Open',
@@ -24,7 +24,8 @@ const translations: Record<Lang, Record<string, string>> = {
 
     // MainContent
     'main.welcome': 'No active session',
-    'main.subtitle': 'Select a workspace and create a session to start building.',
+    'main.subtitle': 'Create a new session to start building.',
+    'session.noSessions': 'No sessions yet',
 
     // SessionPanel
     'session.newSession': 'New session',
@@ -73,7 +74,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'git.unstageAllShort': 'Unstage all',
     'git.unstage': 'Unstage change',
     'git.stageAll': 'Stage all changes',
-    'git.addAll': 'Add all',
+    'git.addAll': 'stage all',
     'git.stage': 'Stage change',
     'git.noChanges': 'No changes detected',
     'git.unsyncedCommits': 'UNSYNCED COMMITS ({count})',
@@ -145,7 +146,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.updater.devMode': 'Update check is not available in development mode.',
     
     // Speech-to-Text Settings English
-    'settings.dictation': 'STT',
+    'settings.dictation': 'Speech to text',
     'settings.dictation.title': 'Speech-to-Text Settings',
     'settings.dictation.hotkey': 'Activation Shortcut',
     'settings.dictation.hotkeyDesc': 'Configure a custom key combination to trigger speech recognition.',
@@ -226,6 +227,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'terminal.customSectionHeader': 'Custom',
     'terminal.searchClis': 'Search shortcuts...',
     'terminal.noMatchingClis': 'No matching shortcuts.',
+    'terminal.noShortcutsYet': 'No shortcuts added yet.',
     'terminal.addCliShortcut': 'Add Shortcut',
     'terminal.addCustomCliTitle': 'New Shortcut',
     'terminal.favoritesTitle': 'Favorites',
@@ -272,7 +274,7 @@ const translations: Record<Lang, Record<string, string>> = {
   },
   it: {
     'app.name': 'Fit',
-    'app.description': 'Il tuo ambiente di sviluppo agentico, leggero e personale.',
+    'app.description': 'A terminal first workspace to ship faster with AI',
 
     'welcome.noProject': 'Nessun progetto aperto',
     'welcome.subtitle': 'Apri un progetto per iniziare',
@@ -281,7 +283,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'dialog.openWorkspace': 'Apri cartella workspace',
 
     'main.welcome': 'Nessuna sessione attiva',
-    'main.subtitle': 'Seleziona un workspace e crea una sessione per iniziare.',
+    'main.subtitle': 'Crea una nuova sessione per iniziare.',
+    'session.noSessions': 'Nessuna sessione',
 
     'session.newSession': 'Nuova sessione',
     'session.workspaceOptions': 'Opzioni workspace',
@@ -327,7 +330,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'git.unstageAllShort': 'Rimuovi tutti',
     'git.unstage': 'Rimuovi dallo stage',
     'git.stageAll': 'Metti tutti in stage',
-    'git.addAll': 'Aggiungi tutti',
+    'git.addAll': 'stage all',
     'git.stage': 'Metti in stage',
     'git.noChanges': 'Nessuna modifica rilevata',
     'git.unsyncedCommits': 'COMMIT NON SINCRONIZZATI ({count})',
@@ -396,7 +399,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'settings.updater.devMode': 'Il controllo aggiornamenti non è disponibile in modalità sviluppo.',
 
     // Impostazioni Speech-to-Text Italian
-    'settings.dictation': 'STT',
+    'settings.dictation': 'Speech to text',
     'settings.dictation.title': 'Impostazioni Speech-to-Text (STT)',
     'settings.dictation.hotkey': 'Scorciatoia di Attivazione',
     'settings.dictation.hotkeyDesc': 'Configura una combinazione di tasti personalizzata per attivare il riconoscimento vocale.',
@@ -476,6 +479,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'terminal.customSectionHeader': 'Custom',
     'terminal.searchClis': 'Cerca scorciatoie...',
     'terminal.noMatchingClis': 'Nessuna scorciatoia corrispondente.',
+    'terminal.noShortcutsYet': 'Nessuna scorciatoia presente.',
     'terminal.addCliShortcut': 'Aggiungi scorciatoia',
     'terminal.addCustomCliTitle': 'Nuova Scorciatoia',
     'terminal.favoritesTitle': 'Preferiti',
@@ -522,7 +526,7 @@ const translations: Record<Lang, Record<string, string>> = {
   },
   es: {
     'app.name': 'Fit',
-    'app.description': 'Tu entorno de desarrollo agentico, ligero y personal.',
+    'app.description': 'A terminal first workspace to ship faster with AI',
 
     'welcome.noProject': 'Ningún proyecto abierto',
     'welcome.subtitle': 'Abre un proyecto para empezar',
@@ -531,7 +535,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'dialog.openWorkspace': 'Abrir carpeta del workspace',
 
     'main.welcome': 'Sin sesión activa',
-    'main.subtitle': 'Selecciona un workspace y crea una sesión para empezar.',
+    'main.subtitle': 'Crea una nueva sesión para empezar.',
+    'session.noSessions': 'Sin sesiones aún',
 
     'session.newSession': 'Nueva sesión',
     'session.workspaceOptions': 'Opciones del workspace',
@@ -577,7 +582,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'git.unstageAllShort': 'Quitar todos',
     'git.unstage': 'Quitar del stage',
     'git.stageAll': 'Poner todos en stage',
-    'git.addAll': 'Añadir todos',
+    'git.addAll': 'stage all',
     'git.stage': 'Poner en stage',
     'git.noChanges': 'No se detectaron cambios',
     'git.unsyncedCommits': 'COMMITS NO SINCRONIZADOS ({count})',
@@ -678,6 +683,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'terminal.customSectionHeader': 'Personalizados',
     'terminal.searchClis': 'Buscar atajos...',
     'terminal.noMatchingClis': 'No se encontraron atajos.',
+    'terminal.noShortcutsYet': 'Aún no se han añadido atajos.',
     'terminal.addCliShortcut': 'Añadir atajo',
     'terminal.addCustomCliTitle': 'Nuevo Atajo',
     'terminal.favoritesTitle': 'Favoritos',
@@ -724,7 +730,7 @@ const translations: Record<Lang, Record<string, string>> = {
   },
   fr: {
     'app.name': 'Fit',
-    'app.description': 'Votre environnement de développement agentique, léger et personnel.',
+    'app.description': 'A terminal first workspace to ship faster with AI',
 
     'welcome.noProject': 'Aucun projet ouvert',
     'welcome.subtitle': 'Ouvrez un projet pour commencer',
@@ -733,7 +739,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'dialog.openWorkspace': 'Ouvrir le dossier du workspace',
 
     'main.welcome': 'Aucune session active',
-    'main.subtitle': 'Sélectionnez un workspace et créez une session pour commencer.',
+    'main.subtitle': 'Créez une nouvelle session pour commencer.',
+    'session.noSessions': 'Aucune session pour le moment',
 
     'session.newSession': 'Nouvelle session',
     'session.workspaceOptions': 'Options du workspace',
@@ -779,7 +786,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'git.unstageAllShort': 'Tout retirer',
     'git.unstage': 'Retirer du stage',
     'git.stageAll': 'Mettre tout en stage',
-    'git.addAll': 'Tout ajouter',
+    'git.addAll': 'stage all',
     'git.stage': 'Mettre en stage',
     'git.noChanges': 'Aucune modification détectée',
     'git.unsyncedCommits': 'COMMITS NON SYNCHRONISÉS ({count})',
@@ -880,6 +887,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'terminal.customSectionHeader': 'Personnalisés',
     'terminal.searchClis': 'Rechercher des raccourcis...',
     'terminal.noMatchingClis': 'Aucun raccourci correspondant.',
+    'terminal.noShortcutsYet': 'Aucun raccourci ajouté pour le moment.',
     'terminal.addCliShortcut': 'Ajouter un raccourci',
     'terminal.addCustomCliTitle': 'Nouveau Raccourci',
     'terminal.favoritesTitle': 'Favoris',
@@ -926,7 +934,7 @@ const translations: Record<Lang, Record<string, string>> = {
   },
   de: {
     'app.name': 'Fit',
-    'app.description': 'Ihre persönliche, leichtgewichtige agentische Entwicklungsumgebung.',
+    'app.description': 'A terminal first workspace to ship faster with AI',
 
     'welcome.noProject': 'Kein Projekt geöffnet',
     'welcome.subtitle': 'Öffnen Sie ein Projekt, um zu beginnen',
@@ -935,7 +943,8 @@ const translations: Record<Lang, Record<string, string>> = {
     'dialog.openWorkspace': 'Workspace-Ordner öffnen',
 
     'main.welcome': 'Keine aktive Sitzung',
-    'main.subtitle': 'Wählen Sie einen Workspace aus und erstellen Sie eine Sitzung, um zu beginnen.',
+    'main.subtitle': 'Erstellen Sie eine neue Sitzung, um zu beginnen.',
+    'session.noSessions': 'Noch keine Sitzungen',
 
     'session.newSession': 'Neue Sitzung',
     'session.workspaceOptions': 'Workspace-Optionen',
@@ -981,7 +990,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'git.unstageAllShort': 'Alle entfernen',
     'git.unstage': 'Aus Stage entfernen',
     'git.stageAll': 'Alle in Stage versetzen',
-    'git.addAll': 'Alle hinzufügen',
+    'git.addAll': 'stage all',
     'git.stage': 'In Stage versetzen',
     'git.noChanges': 'Keine Änderungen erkannt',
     'git.unsyncedCommits': 'NICHT SYNCHRONISIERTE COMMITS ({count})',
@@ -1082,6 +1091,7 @@ const translations: Record<Lang, Record<string, string>> = {
     'terminal.customSectionHeader': 'Benutzerdefiniert',
     'terminal.searchClis': 'Schnellbefehle suchen...',
     'terminal.noMatchingClis': 'Keine passenden Schnellbefehle gefunden.',
+    'terminal.noShortcutsYet': 'Noch keine Schnellbefehle hinzugefügt.',
     'terminal.addCliShortcut': 'Schnellbefehl hinzufügen',
     'terminal.addCustomCliTitle': 'Neuer Schnellbefehl',
     'terminal.favoritesTitle': 'Favoriten',
